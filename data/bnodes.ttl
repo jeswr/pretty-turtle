@@ -1,0 +1,9 @@
+@prefix ex: <http://example.com/ns#> .
+
+ex:j a _:b1 .
+
+ex:t a _:b1 .
+
+ex:k a _:b1 .
+
+_:b2 a ex:Thing .
