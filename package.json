@@ -88,7 +88,8 @@
         "name": "beta",
         "prerelease": true
       }
-    ]
+    ],
+    "repositoryUrl": "https://github.com/jeswr/pretty-turtle"
   },
   "publishConfig": {
     "access": "public"
