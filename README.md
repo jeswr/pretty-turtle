@@ -1,5 +1,5 @@
 # Pretty Turtle
-A pretty turtle syntax writer
+A pretty turtle syntax writer (including support for RDF-star)
 
 [![GitHub license](https://img.shields.io/github/license/jeswr/pretty-turtle.svg)](https://github.com/jeswr/pretty-turtle/blob/master/LICENSE)
 [![npm version](https://img.shields.io/npm/v/@jeswr/pretty-turtle.svg)](https://www.npmjs.com/package/@jeswr/pretty-turtle)
