@@ -10,6 +10,8 @@ A pretty turtle syntax writer
 ## Usage
 ```ts
 import { write } from '@jeswr/pretty-turtle';
+
+// Convert RDF/JS quads into a pretty turtle string
 const str = await write(quads);
 ```
 
