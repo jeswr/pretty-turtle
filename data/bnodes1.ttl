@@ -2,8 +2,8 @@
 
 ex:j a _:b1 .
 
-ex:t a _:b1 .
+ex:t a _:b1, [] .
 
-ex:k a _:b1 .
+ex:k a _:b1, [] .
 
 [] a ex:Thing .

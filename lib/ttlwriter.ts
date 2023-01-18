@@ -51,21 +51,63 @@ export class TTLWriter {
 
     this.writer.newLine(1);
 
+    // First write Named Node subjects
     for (const subject of this.store.getSubjects(null, null, null)) {
       if (subject.termType === 'NamedNode') {
         await this.writeTurtleSubject(subject);
       }
     }
 
+    // Then write blank node subjects that can be anonymized at the top level
     for (const subject of this.store.getSubjects(null, null, null)) {
-      await this.writeTurtleSubject(subject);
+      if (
+        subject.termType === 'BlankNode'
+        && !this.explicitBnodes.has(subject.value)
+        // Ensure still in store as subject
+        && this.store.getQuads(subject, null, null, null).length > 0
+        && this.store.getQuads(null, subject, null, null).length === 0
+        && this.store.getQuads(null, null, subject, null).length === 0
+      ) {
+        await this.writeTurtleSubject(subject, true);
+      }
+    }
+
+    // Next write blank nodes that cannot be anonymized within another set of statements
+    // (it is not an explicit bnode,
+    // occurs as the object of one quad,
+    // and only as the subject in other quads)
+    for (const subject of this.store.getSubjects(null, null, null)) {
+      // Ensure still in store as subject
+      if (
+        subject.termType === 'BlankNode' && !(
+          this.store.getQuads(null, null, subject, null).length !== 1
+          || !this.store.getQuads(null, null, subject, null)[0].subject.equals(subject)
+        )
+      ) {
+        this.explicitBnodes.add(subject.value);
+        await this.writeTurtleSubject(subject);
+      }
+    }
+
+    for (const subject of this.store.getSubjects(null, null, null)) {
+      // Ensure still in store as subject
+      if (this.store.getQuads(subject, null, null, null).length > 0) {
+        if (subject.termType === 'BlankNode') {
+          this.explicitBnodes.add(subject.value);
+        }
+        await this.writeTurtleSubject(subject);
+      }
     }
 
     this.writer.end();
   }
 
-  private async writeTurtleSubject(term: Term) {
-    this.writer.add(await this.termToString(term));
+  private async writeTurtleSubject(term: Term, anonymizeSubject = false) {
+    if (anonymizeSubject) {
+      this.writer.add('[]');
+    } else {
+      this.writer.add(await this.termToString(term));
+    }
     this.writer.add(' ');
     this.writer.indent();
     await this.writeTurtlePredicates(term);
@@ -83,18 +125,17 @@ export class TTLWriter {
         }
       }
     } if (term.termType === 'Literal' && (term.datatypeString === 'http://www.w3.org/2001/XMLSchema#integer'
-    || term.datatypeString === 'http://www.w3.org/2001/XMLSchema#boolean')) {
+      || term.datatypeString === 'http://www.w3.org/2001/XMLSchema#boolean')) {
       return term.value;
     }
     if (term.termType === 'Quad') {
       if (!term.graph.equals(DataFactory.defaultGraph())) {
         throw new Error('Default graph expected on nested quads');
       }
-      return `<<${await this.termToString(term.subject as any)} ${
-        term.predicate.termType === 'NamedNode'
-        && term.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
-          ? 'a'
-          : await this.termToString(term.predicate as any)} ${await this.termToString(term.object as any)}>>`;
+      return `<<${await this.termToString(term.subject as any)} ${term.predicate.termType === 'NamedNode'
+          && term.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+        ? 'a'
+        : await this.termToString(term.predicate as any)} ${await this.termToString(term.object as any)}>>`;
     }
     return termToString(term);
   }
@@ -146,11 +187,11 @@ export class TTLWriter {
     const nonBlankObjects: Term[] = [];
     for (const object of objects) {
       if (object.termType === 'BlankNode'
-      && [
-        ...this.store.match(null, null, object),
-        ...this.store.match(null, object, null),
-      ].length === 0
-      && !this.explicitBnodes.has(object.value)
+        && [
+          ...this.store.match(null, null, object),
+          ...this.store.match(null, object, null),
+        ].length === 0
+        && !this.explicitBnodes.has(object.value)
       ) {
         blankObjects.push(object);
       } else {
@@ -176,11 +217,13 @@ export class TTLWriter {
         }
         if (!(await this.writeList(blank))) {
           this.writer.add('[');
-          this.writer.indent();
-          this.writer.newLine(1);
-          await this.writeTurtlePredicates(blank);
-          this.writer.deindent();
-          this.writer.newLine(1);
+          if (this.store.getQuads(blank, null, null, null).length > 0) {
+            this.writer.indent();
+            this.writer.newLine(1);
+            await this.writeTurtlePredicates(blank);
+            this.writer.deindent();
+            this.writer.newLine(1);
+          }
           this.writer.add(']');
         }
       }

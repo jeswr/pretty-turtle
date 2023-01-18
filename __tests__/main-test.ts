@@ -2,6 +2,7 @@ import { DataFactory, Parser } from 'n3';
 import fs from 'fs';
 import path from 'path';
 import { write } from '../lib';
+import 'jest-rdf';
 
 async function getQuads(file: string) {
   const parser = new Parser({ rdfStar: true } as any);
@@ -16,10 +17,21 @@ async function getQuads(file: string) {
   };
 }
 
+const loose: Record<string, boolean | undefined> = {
+  'bnodes5.ttl': true,
+};
+
 it('It should correctly write turtle files', async () => {
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'data'))) {
-    const { string } = await getQuads(file);
-    expect(string.replace(/b0_/g, '')).toEqual(fs.readFileSync(path.join(__dirname, '..', 'data', file)).toString());
+    const { string, quads } = await getQuads(file);
+
+    if (loose[file]) {
+      // If loose we only need the quads to match when we re-parse the string
+      expect((new Parser()).parse(string)).toBeRdfIsomorphic(quads);
+    } else {
+      // If not loose we expect an exact string match
+      expect(string.replace(/b\d+_/g, '')).toEqual(fs.readFileSync(path.join(__dirname, '..', 'data', file)).toString());
+    }
   }
 });
 
