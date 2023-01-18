@@ -1,7 +1,7 @@
 {
-  "name": "",
+  "name": "@jeswr/pretty-turtle",
   "version": "0.0.0-development",
-  "description": "",
+  "description": "A pretty writer/serializer for turtle RDF syntax",
   "main": "dist/index.js",
   "types": "dist/index.d.js",
   "directories": {
@@ -22,15 +22,20 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/jeswr/pretty-turtle.git"
   },
-  "keywords": [],
+  "keywords": [
+    "turtle",
+    "rdf",
+    "write",
+    "serialize"
+  ],
   "author": "Jesse Wright <jesse.wright@anu.edu.au>",
   "license": "MIT",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/jeswr/pretty-turtle/issues"
   },
-  "homepage": "",
+  "homepage": "https://github.com/jeswr/pretty-turtle#readme",
   "peerDependencies": {
     "@rdfjs/types": "^1.1.0"
   },
