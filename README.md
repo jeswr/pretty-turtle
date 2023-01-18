@@ -1,5 +1,5 @@
-# template-typescript
-Template repo for my Typescript projects
+# Pretty Turtle
+A pretty turtle syntax writer
 [![GitHub license](https://img.shields.io/github/license/jeswr/pretty-turtle.svg)](https://github.com/jeswr/pretty-turtle/blob/master/LICENSE)
 [![npm version](https://img.shields.io/npm/v/@jeswr/pretty-turtle.svg)](https://www.npmjs.com/package/@jeswr/pretty-turtle)
 [![build](https://img.shields.io/github/workflow/status/jeswr/pretty-turtle/Node.js%20CI)](https://github.com/jeswr/pretty-turtle/tree/main/)
@@ -9,7 +9,7 @@ Template repo for my Typescript projects
 ## Usage
 ```ts
 import { write } from '@jeswr/pretty-turtle';
-const str = await write(quads)
+const str = await write(quads);
 ```
 
 ## License
