@@ -51,6 +51,18 @@ export class TTLWriter {
 
     this.writer.newLine(1);
 
+    // TODO: See if we need this in any regard
+    // NOTE: We really should be using the same logic as below to determine
+    // the order to print things
+    // First write annotated quads
+    // for (const subject of this.store.getSubjects(null, null, null)) {
+    //   // Test if the quad is in the store as an annotated statement
+    //   // @ts-ignore
+    //   if (subject.termType === 'Quad' && this.store.has(subject)) {
+    //     await this.writeTurtleSubject(subject);
+    //   }
+    // }
+
     // First write Named Node subjects
     for (const subject of this.store.getSubjects(null, null, null)) {
       if (subject.termType === 'NamedNode') {
@@ -177,12 +189,14 @@ export class TTLWriter {
         this.writer.add(' ');
         await this.writeTurtleObjects(
           this.store.getObjectsOnce(term, predicate, null),
+          term,
+          predicate,
         );
       }
     }
   }
 
-  private async writeTurtleObjects(objects: Term[]) {
+  private async writeTurtleObjects(objects: Term[], subject?: Term, predicate?: Term) {
     const blankObjects: Term[] = [];
     const nonBlankObjects: Term[] = [];
     for (const object of objects) {
@@ -202,11 +216,31 @@ export class TTLWriter {
       }
     }
 
-    this.writer.add(
-      (await Promise.all(nonBlankObjects.map((object) => this.termToString(object)))).join(', '),
-    );
+    let comma = false;
+    for (const object of nonBlankObjects) {
+      if (comma) {
+        this.writer.add(', ');
+      }
 
-    let comma = nonBlankObjects.length > 0;
+      this.writer.add(await this.termToString(object));
+
+      if (subject && predicate) {
+        const quad = DataFactory.quad(subject as any, predicate as any, object as any);
+        if (this.store.getQuads(quad, null, null, null).length > 0) {
+          this.writer.add(' {| ');
+          await this.writeTurtlePredicates(quad as any);
+          this.writer.add(' |}');
+        }
+      }
+
+      comma = true;
+    }
+
+    // this.writer.add(
+    //   (await Promise.all(nonBlankObjects.map((object) => this.termToString(object)))).join(', '),
+    // );
+
+    // let comma = nonBlankObjects.length > 0;
 
     if (blankObjects.length > 0) {
       for (const blank of blankObjects) {
@@ -225,6 +259,16 @@ export class TTLWriter {
             this.writer.newLine(1);
           }
           this.writer.add(']');
+        }
+
+        // Write annotations as appropriate
+        if (subject && predicate) {
+          const quad = DataFactory.quad(subject as any, predicate as any, blank as any);
+          if (this.store.getQuads(quad, null, null, null).length > 0) {
+            this.writer.add(' {| ');
+            await this.writeTurtlePredicates(quad as any);
+            this.writer.add(' |}');
+          }
         }
       }
     }

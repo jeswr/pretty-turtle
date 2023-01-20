@@ -1,0 +1,3 @@
+@prefix : <http://example.com/ns#> .
+
+[] :p :o {| :ps :os |}, :o2 {| :ps :os2 |} .
