@@ -217,12 +217,20 @@ export class TTLWriter {
     }
 
     let comma = false;
+    let lastQuad = false;
+    this.writer.indent();
     for (const object of nonBlankObjects) {
       if (comma) {
         this.writer.add(', ');
+        if (lastQuad) {
+          // Start a new line for multiple quad objects
+          this.writer.newLine(1);
+        }
       }
 
       this.writer.add(await this.termToString(object));
+      // @ts-ignore (n3.js type error?)
+      lastQuad = object.termType === 'Quad';
 
       if (subject && predicate) {
         const quad = DataFactory.quad(subject as any, predicate as any, object as any);
@@ -235,6 +243,7 @@ export class TTLWriter {
 
       comma = true;
     }
+    this.writer.deindent();
 
     // this.writer.add(
     //   (await Promise.all(nonBlankObjects.map((object) => this.termToString(object)))).join(', '),
