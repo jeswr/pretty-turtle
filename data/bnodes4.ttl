@@ -1,3 +1,2 @@
-@prefix ex: <http://example.com/ns#> .
 
 _:s3 a _:s3 .

@@ -32,10 +32,37 @@ export class TTLWriter {
     writer: Writer,
     prefixes: { [prefix: string]: string } = {},
   ) {
+    const terms: Set<string> = new Set();
+
+    function addTerm(term: RDF.Term) {
+      if (term.termType === 'NamedNode') {
+        terms.add(term.value);
+      } else if (term.termType === 'Quad') {
+        addTerm(term.subject);
+        addTerm(term.predicate);
+        addTerm(term.object);
+        addTerm(term.graph);
+      }
+    }
+
+    for (const list of [
+      this.store.getSubjects(null, null, null),
+      this.store.getPredicates(null, null, null),
+      this.store.getObjects(null, null, null),
+    ]) {
+      for (const node of list) {
+        addTerm(node);
+      }
+    }
+
+    const termList = [...terms];
+
     for (const key of Object.keys(prefixes)) {
-      const iri = prefixes[key];
-      this.prefixRev[iri] = key;
-      this.prefixes[key] = iri;
+      if (termList.some((term) => term.startsWith(prefixes[key]))) {
+        const iri = prefixes[key];
+        this.prefixRev[iri] = key;
+        this.prefixes[key] = iri;
+      }
     }
     this.writer = writer;
   }
