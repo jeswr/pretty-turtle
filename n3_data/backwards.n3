@@ -1,0 +1,7 @@
+@prefix : <http://example.org/> .
+
+{
+  ?s a :Thing .
+} <= {
+  ?s a :Person .
+} .
