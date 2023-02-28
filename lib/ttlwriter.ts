@@ -233,10 +233,16 @@ export class TTLWriter {
       if (!term.graph.equals(DF.defaultGraph())) {
         throw new Error('Default graph expected on nested quads');
       }
-      return `<<${await this.termToString(term.subject as any)} ${term.predicate.termType === 'NamedNode'
+      const anon = (_term: Term) => {
+        if (_term.termType === 'BlankNode' && !this.explicitBnodes.has(_term.value)) {
+          return '[]';
+        }
+        return this.termToString(_term as any);
+      };
+      return `<<${await anon(term.subject as any)} ${term.predicate.termType === 'NamedNode'
           && term.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
         ? 'a'
-        : await this.termToString(term.predicate as any)} ${await this.termToString(term.object as any)}>>`;
+        : await this.termToString(term.predicate as any)} ${await anon(term.object as any)}>>`;
     }
     return termToString(term);
   }
@@ -292,16 +298,24 @@ export class TTLWriter {
     const blankObjects: Term[] = [];
     const nonBlankObjects: Term[] = [];
     for (const object of objects) {
+      const l = [
+        ...this.store.match(null, null, object, this.currentGraph as any),
+        ...this.store.match(null, object, null, this.currentGraph as any),
+      ].length;
       if (object.termType === 'BlankNode'
-        && [
-          ...this.store.match(null, null, object, this.currentGraph as any),
-          ...this.store.match(null, object, null, this.currentGraph as any),
-        ].length === 0
+        && l === 0
         && !this.explicitBnodes.has(object.value)
       ) {
         blankObjects.push(object);
       } else {
         if (object.termType === 'BlankNode') {
+          if (this.isN3 && !this.explicitBnodes.has(object.value) && l === 1)  {
+            const quad = this.store.getQuadsOnce(null, null, object, this.currentGraph as any)[0];
+            if (quad) {
+
+            }
+          }
+
           this.explicitBnodes.add(object.value);
         }
         nonBlankObjects.push(object);
