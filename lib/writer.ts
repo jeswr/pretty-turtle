@@ -9,11 +9,14 @@ export default class Writer {
 
   private write: writeFunc;
 
+  private compact: boolean = false;
+
   end: (done?: Function) => void;
 
-  constructor(options: { write: writeFunc, end: (done?: Function) => void }) {
+  constructor(options: { write: writeFunc, end: (done?: Function) => void, compact?: boolean }) {
     this.write = options.write;
     this.end = options.end;
+    this.compact = options.compact || false;
   }
 
   indent() {
@@ -32,7 +35,9 @@ export default class Writer {
   }
 
   newLine(no: number) {
-    this.write('\n'.repeat(no) + '  '.repeat(this.indents), 'utf-8');
+    if (!this.compact) {
+      this.write('\n'.repeat(no) + '  '.repeat(this.indents), 'utf-8');
+    }
     return this;
   }
 }

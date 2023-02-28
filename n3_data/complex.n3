@@ -1,0 +1,21 @@
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix ns3: <https://example.org/ns/3/> .
+@prefix context: <https://example.org/ns/3/context/> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ns2: <https://example.org/ns/2/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix sc: <http://localhost:3000/semanticContext/01_01_2023#> .
+@prefix tod: <http://localhost:3000/contextRules/trueOnDate#> .
+
+sc:01_01_2023 a ns2:Context ;
+  ns2:constraint [
+    a ns2:Constraint ;
+    ns3:recommendedRules tod:trueOnDate ;
+    sh:equals "2023-01-01"^^<http://www.w3.org/2001/XMLSchema#date> ;
+    sh:targetNode context:time
+  ] .
+
+{?U_0 a ns3:Constraint ;sh:equals ?U_1 ;sh:targetNode context:time .?U_2 ns3:trueOnDate ?U_1 .} => {?U_0 ns3:satisfiedBy ?U_2 .} .
+{?C a ns3:Context ;ns3:constraint [ns3:satisfiedBy ?s] .} => {?C ns3:contains ?s .} .
+{(?U_2 ?U_1) math:difference ?U_3 .(?U_3 31622400) math:integerQuotient ?U_4 .?U_0 foaf:birthday ?U_1 .} => {<<?U_0 foaf:age ?U_4>> ns3:trueOnDate ?U_2 .} .
