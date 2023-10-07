@@ -10,3 +10,5 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     steps:
       - run: gh pr merge ${{ github.ref }} --auto --squash
+    env:
+      GH_TOKEN: ${{ github.token }}
