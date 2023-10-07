@@ -9,6 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
-      - run: gh pr merge ${{ github.ref }} --auto --squash
+      - run: gh pr merge --auto --squash
     env:
       GH_TOKEN: ${{ github.token }}
