@@ -14,6 +14,30 @@ import { write } from '@jeswr/pretty-turtle';
 const str = await write(quads);
 ```
 
+This library also supports writing in Notation3 format
+
+```ts
+import { write } from '@jeswr/pretty-turtle';
+
+// Convert RDF/JS quads into a Notation3 string
+const str = await write(quads, {
+  format: 'text/n3'
+});
+```
+
+An additional `prefixes` parameter is supported to allow compacting of URIs
+
+```ts
+import { write } from '@jeswr/pretty-turtle';
+
+// Convert RDF/JS quads into a Notation3 string
+const str = await write(quads, {
+  prefixes: {
+    ex: "http://example.org/"
+  }
+});
+```
+
 ## License
 ©2023–present
 [Jesse Wright](https://github.com/jeswr),
