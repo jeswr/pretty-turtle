@@ -26,6 +26,7 @@
   },
   "keywords": [
     "turtle",
+    "n3",
     "rdf",
     "write",
     "serialize"
