@@ -16,6 +16,7 @@ export interface Options {
   prefixes?: Record<string, string>;
   format?: string;
   compact?: boolean;
+  isImpliedBy?: boolean;
 }
 
 function getNamespace(str: string) {
@@ -24,6 +25,8 @@ function getNamespace(str: string) {
 
 export class TTLWriter {
   private isN3 = false;
+
+  private isImpliedBy = false;
 
   private prefixes: { [prefix: string]: string } = {};
 
@@ -53,6 +56,8 @@ export class TTLWriter {
       default:
         throw new Error(`Unsupported format: ${options?.format}`);
     }
+
+    this.isImpliedBy = options?.isImpliedBy || false;
 
     if (!this.isN3) {
       const graphs = store.getGraphs(null, null, null);
@@ -218,6 +223,9 @@ export class TTLWriter {
     if (term.termType === 'NamedNode') {
       if (this.isN3 && term.value === 'http://www.w3.org/2000/10/swap/log#implies') {
         return '=>';
+      }
+      if (this.isN3 && this.isImpliedBy && term.value === 'http://www.w3.org/2000/10/swap/log#isImpliedBy') {
+        return '<=';
       }
       const namespace = getNamespace(term.value);
       if (namespace && namespace in this.prefixRev) {
