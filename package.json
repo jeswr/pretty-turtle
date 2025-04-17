@@ -38,7 +38,7 @@
   },
   "homepage": "https://github.com/jeswr/pretty-turtle#readme",
   "peerDependencies": {
-    "@rdfjs/types": "^1.1.0"
+    "@rdfjs/types": "*"
   },
   "devDependencies": {
     "@types/jest": "^29.2.5",
