@@ -23,6 +23,17 @@ function getNamespace(str: string) {
   return /^[^]*[#/]/.exec(str)?.[0];
 }
 
+const defaultPrefixes: { [prefix: string]: string } = {
+  rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+  rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+  owl: 'http://www.w3.org/2002/07/owl#',
+  sh: 'http://www.w3.org/ns/shacl#',
+  xsd: 'http://www.w3.org/2001/XMLSchema#',
+  ex: 'http://example.com/ns#',
+};
+
+const WELL_DEFINED_DATATYPES = ['http://www.w3.org/1999/02/22-rdf-syntax-ns#langString', 'http://www.w3.org/2001/XMLSchema#string', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString'];
+
 export class TTLWriter {
   private isN3 = false;
 
@@ -78,15 +89,19 @@ export class TTLWriter {
         terms.add(term.value);
       } else if (term.termType === 'Quad') {
         addTerm(term.subject);
-        addTerm(term.predicate);
+        if (term.predicate.termType !== 'NamedNode' || term.predicate.value !== 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type') {
+          addTerm(term.predicate);
+        }
         addTerm(term.object);
         addTerm(term.graph);
+      } else if (term.termType === 'Literal' && term.datatype.termType === 'NamedNode' && !WELL_DEFINED_DATATYPES.includes(term.datatype.value)) {
+        addTerm(term.datatype);
       }
     }
 
     for (const list of [
       this.store.getSubjects(null, null, null),
-      this.store.getPredicates(null, null, null),
+      this.store.getPredicates(null, null, null).filter((p) => p.termType !== 'NamedNode' || p.value !== 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
       this.store.getObjects(null, null, null),
     ]) {
       for (const node of list) {
@@ -94,11 +109,11 @@ export class TTLWriter {
       }
     }
 
-    const termList = [...terms];
+    const termList = [...terms].filter((term) => term.startsWith('http://'));
 
-    for (const key of Object.keys(prefixes)) {
-      if (termList.some((term) => term.startsWith(prefixes[key]))) {
-        const iri = prefixes[key];
+    for (const key of [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)]) {
+      const iri = prefixes[key] || defaultPrefixes[key];
+      if (!(iri in this.prefixRev) && termList.some((term) => term.startsWith(iri))) {
         this.prefixRev[iri] = key;
         this.prefixes[key] = iri;
       }
@@ -246,6 +261,11 @@ export class TTLWriter {
         ? 'a'
         : await this.termToString(term.predicate as any)} ${await this.termToString(term.object as any)}>>`;
     }
+
+    if (term.termType === 'Literal' && !WELL_DEFINED_DATATYPES.includes(term.datatype.value)) {
+      return `"${term.value}"^^${await this.termToString(term.datatype)}`;
+    }
+
     return termToString(term);
   }
 

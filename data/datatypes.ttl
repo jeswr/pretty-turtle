@@ -1,0 +1,6 @@
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.com/ns#> .
+
+ex:j ex:age 22 ;
+  ex:name "John", "John"@nl ;
+  ex:birthDate "2022-01-01"^^xsd:date .
