@@ -109,7 +109,7 @@ export class TTLWriter {
       }
     }
 
-    const termList = [...terms].filter((term) => term.startsWith('http://'));
+    const termList = [...terms];
 
     for (const key of [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)]) {
       const iri = prefixes[key] || defaultPrefixes[key];
