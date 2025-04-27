@@ -1,0 +1,4 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix vdl: <http://example.com/vdl#> .
+
+[] vdl:drivingPrivileges "[{\"codes\":[{\"code\":\"D\"}],\"expiry_date\":\"2027-01-01\",\"issue_date\":\"2019-01-01\",\"vehicle_category_code\":\"D\"},{\"codes\":[{\"code\":\"C\"}],\"expiry_date\":\"2017-01-01\",\"issue_date\":\"2019-01-01\",\"vehicle_category_code\":\"C\"}]"^^rdf:JSON .

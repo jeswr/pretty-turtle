@@ -11,6 +11,7 @@ import { DataFactory as DF, Quad, Term } from 'n3';
 import { termToString } from 'rdf-string-ttl';
 import Store from './volatile-store';
 import Writer from './writer';
+import { escapeStringRDF } from './escape';
 
 export interface Options {
   prefixes?: Record<string, string>;
@@ -263,7 +264,7 @@ export class TTLWriter {
     }
 
     if (term.termType === 'Literal' && !WELL_DEFINED_DATATYPES.includes(term.datatype.value)) {
-      return `"${term.value}"^^${await this.termToString(term.datatype)}`;
+      return `"${escapeStringRDF(term.value)}"^^${await this.termToString(term.datatype)}`;
     }
 
     return termToString(term);
