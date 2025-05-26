@@ -18,12 +18,66 @@ import Store from './volatile-store';
 import Writer from './writer';
 import { escapeStringRDF, escapeIRI } from './escape';
 
+/**
+ * Configuration options for the turtle/N3 writer
+ */
 export interface Options {
+  /**
+   * A map of prefix names to their corresponding namespace URIs for compacting URIs in the output.
+   *
+   * @example
+   * ```ts
+   * {
+   *   ex: "http://example.org/",
+   *   foaf: "http://xmlns.com/foaf/0.1/",
+   *   schema: "https://schema.org/"
+   * }
+   * ```
+   */
   prefixes?: Record<string, string>;
+
+  /**
+   * Specifies the output format.
+   *
+   * @defaultValue 'text/turtle'
+   *
+   * Supported values:
+   * - `'text/turtle'` - Standard Turtle format
+   * - `'text/n3'` - Notation3 format
+   */
   format?: string;
+
+  /**
+   * When set to `true`, produces a more compact output by
+   * removing unnecessary whitespace and line breaks.
+   *
+   * @defaultValue false
+   */
   compact?: boolean;
+
+  /**
+   * Used to opt in to using isImpliedBy syntax (`<=`) when in N3 mode.
+   *
+   * @defaultValue false
+   */
   isImpliedBy?: boolean;
+
+  /**
+   * Sets the base IRI for the document, which can be used to resolve relative IRIs.
+   *
+   * @example "http://example.org/base/"
+   */
   baseIri?: string;
+
+  /**
+   * When set to `true`, explicitly writes the `@base` directive
+   * in the output even if a base IRI is provided.
+   *
+   * @defaultValue false
+   *
+   * @example
+   * When enabled, output will include: `@base <http://example.org/base/> .`
+   */
   explicitBaseIRI?: boolean;
 }
 
