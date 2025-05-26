@@ -50,8 +50,9 @@
     "eslint-plugin-import": "^2.27.5",
     "jest": "^29.3.1",
     "jest-rdf": "^2.0.0",
-    "n3-test": "npm:n3@1.16.0",
+    "n3-test": "npm:n3@1.16.3",
     "pre-commit": "^1.2.2",
+    "rdf-terms": "^2.0.0",
     "semantic-release": "^24.0.0",
     "ts-jest": "^29.0.5",
     "typescript": "^5.2.2"
