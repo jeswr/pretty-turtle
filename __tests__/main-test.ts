@@ -1,11 +1,12 @@
-import { DataFactory, Parser } from 'n3';
+import { DataFactory, Parser } from 'n3-test';
 import fs from 'fs';
 import path from 'path';
 import { write } from '../lib';
 import 'jest-rdf';
 
 async function getQuads(file: string, _prefixes: Record<string, string> = {}, format: string = 'text/turtle', dirname = 'data', compact = false) {
-  const parser = new Parser({ rdfStar: true, format } as any);
+  const baseIri = 'http://example.base/ns/a/b/c/d';
+  const parser = new Parser({ rdfStar: true, format, baseIRI: baseIri } as any);
   // @ts-expect-error
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
@@ -16,7 +17,14 @@ async function getQuads(file: string, _prefixes: Record<string, string> = {}, fo
 
   return {
     quads,
-    string: await write(quads, { prefixes, format, compact }),
+    string: await write(quads, {
+      prefixes,
+      format,
+      compact,
+      baseIri,
+      explicitBaseIRI: file.includes('explicit-base'),
+    }),
+    baseIri,
   };
 }
 
@@ -27,11 +35,11 @@ const loose: Record<string, boolean | undefined> = {
 it('It should correctly write turtle files', async () => {
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'data'))) {
     try {
-      const { string, quads } = await getQuads(file);
+      const { string, quads, baseIri } = await getQuads(file);
 
       if (loose[file]) {
         // If loose we only need the quads to match when we re-parse the string
-        expect((new Parser()).parse(string)).toBeRdfIsomorphic(quads);
+        expect((new Parser({ baseIRI: baseIri })).parse(string)).toBeRdfIsomorphic(quads);
       } else {
         // If not loose we expect an exact string match
         expect(string.replace(/b\d+_/g, '')).toEqual(fs.readFileSync(path.join(__dirname, '..', 'data', file)).toString());
@@ -47,9 +55,9 @@ it('It should correctly write turtle files', async () => {
 
 it('It should correctly write N3 files', async () => {
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'n3_data'))) {
-    const { string, quads } = await getQuads(file, undefined, 'text/n3', 'n3_data');
+    const { string, quads, baseIri } = await getQuads(file, undefined, 'text/n3', 'n3_data');
 
-    const parser = new Parser({ format: 'text/n3' });
+    const parser = new Parser({ format: 'text/n3', baseIRI: baseIri });
     // @ts-expect-error
     // eslint-disable-next-line no-underscore-dangle
     parser._supportsRDFStar = true;

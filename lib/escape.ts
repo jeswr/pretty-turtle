@@ -36,3 +36,7 @@ export function escapeStringRDF(stringValue: string): string {
   }
   return stringValue;
 }
+
+export function escapeIRI(iriValue: string): string {
+  return iriValue.replace(escapePattern, replaceEscapedCharacter);
+}

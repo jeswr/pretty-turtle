@@ -7,17 +7,78 @@
  * written is also output.
  */
 import type * as RDF from '@rdfjs/types';
-import { DataFactory as DF, Quad, Term } from 'n3';
+
+import {
+  DataFactory as DF, Quad, Term,
+  // @ts-expect-error
+  BaseIRI,
+} from 'n3';
 import { termToString } from 'rdf-string-ttl';
 import Store from './volatile-store';
 import Writer from './writer';
-import { escapeStringRDF } from './escape';
+import { escapeStringRDF, escapeIRI } from './escape';
 
+/**
+ * Configuration options for the turtle/N3 writer
+ */
 export interface Options {
+  /**
+   * A map of prefix names to their corresponding namespace URIs for compacting URIs in the output.
+   *
+   * @example
+   * ```ts
+   * {
+   *   ex: "http://example.org/",
+   *   foaf: "http://xmlns.com/foaf/0.1/",
+   *   schema: "https://schema.org/"
+   * }
+   * ```
+   */
   prefixes?: Record<string, string>;
+
+  /**
+   * Specifies the output format.
+   *
+   * @defaultValue 'text/turtle'
+   *
+   * Supported values:
+   * - `'text/turtle'` - Standard Turtle format
+   * - `'text/n3'` - Notation3 format
+   */
   format?: string;
+
+  /**
+   * When set to `true`, produces a more compact output by
+   * removing unnecessary whitespace and line breaks.
+   *
+   * @defaultValue false
+   */
   compact?: boolean;
+
+  /**
+   * Used to opt in to using isImpliedBy syntax (`<=`) when in N3 mode.
+   *
+   * @defaultValue false
+   */
   isImpliedBy?: boolean;
+
+  /**
+   * Sets the base IRI for the document, which can be used to resolve relative IRIs.
+   *
+   * @example "http://example.org/base/"
+   */
+  baseIri?: string;
+
+  /**
+   * When set to `true`, explicitly writes the `@base` directive
+   * in the output even if a base IRI is provided.
+   *
+   * @defaultValue false
+   *
+   * @example
+   * When enabled, output will include: `@base <http://example.org/base/> .`
+   */
+  explicitBaseIRI?: boolean;
 }
 
 function getNamespace(str: string) {
@@ -50,6 +111,12 @@ export class TTLWriter {
 
   private currentGraph: RDF.Term = DF.defaultGraph();
 
+  private baseIRI: BaseIRI | null = null;
+
+  private baseIRIString: string | undefined = undefined;
+
+  private explicitBaseIRI = false;
+
   constructor(
     // eslint-disable-next-line no-unused-vars
     private store: Store,
@@ -70,6 +137,12 @@ export class TTLWriter {
     }
 
     this.isImpliedBy = options?.isImpliedBy || false;
+    this.explicitBaseIRI = options?.explicitBaseIRI || false;
+
+    if (BaseIRI.supports(options.baseIri)) {
+      this.baseIRI = new BaseIRI(options.baseIri);
+      this.baseIRIString = options.baseIri;
+    }
 
     if (!this.isN3) {
       const graphs = store.getGraphs(null, null, null);
@@ -123,6 +196,12 @@ export class TTLWriter {
   }
 
   async write() {
+    // Write the BASE statement if explicitBaseIRI is enabled
+    if (this.explicitBaseIRI && typeof this.baseIRIString === 'string') {
+      this.writer.add(`@base <${escapeIRI(this.baseIRIString)}> .`);
+      this.writer.newLine(1);
+    }
+
     // Write the prefixes
     for (const prefix in this.prefixes) {
       if (typeof prefix === 'string') {
@@ -249,7 +328,11 @@ export class TTLWriter {
           return `${this.prefixRev[namespace]}:${term.value.slice(namespace.length)}`;
         }
       }
-    } if (term.termType === 'Literal' && (term.datatypeString === 'http://www.w3.org/2001/XMLSchema#integer'
+    }
+    if (term.termType === 'NamedNode' && this.baseIRI !== null) {
+      return `<${escapeIRI(this.baseIRI.toRelative(term.value))}>`;
+    }
+    if (term.termType === 'Literal' && (term.datatypeString === 'http://www.w3.org/2001/XMLSchema#integer'
       || term.datatypeString === 'http://www.w3.org/2001/XMLSchema#boolean')) {
       return term.value;
     }
