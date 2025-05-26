@@ -24,6 +24,7 @@ export interface Options {
   compact?: boolean;
   isImpliedBy?: boolean;
   baseIri?: string;
+  explicitBaseIRI?: boolean;
 }
 
 function getNamespace(str: string) {
@@ -58,6 +59,10 @@ export class TTLWriter {
 
   private baseIRI: BaseIRI | null = null;
 
+  private baseIRIString: string | undefined = undefined;
+
+  private explicitBaseIRI = false;
+
   constructor(
     // eslint-disable-next-line no-unused-vars
     private store: Store,
@@ -78,9 +83,11 @@ export class TTLWriter {
     }
 
     this.isImpliedBy = options?.isImpliedBy || false;
+    this.explicitBaseIRI = options?.explicitBaseIRI || false;
 
     if (BaseIRI.supports(options.baseIri)) {
       this.baseIRI = new BaseIRI(options.baseIri);
+      this.baseIRIString = options.baseIri;
     }
 
     if (!this.isN3) {
@@ -135,6 +142,12 @@ export class TTLWriter {
   }
 
   async write() {
+    // Write the BASE statement if explicitBaseIRI is enabled
+    if (this.explicitBaseIRI && typeof this.baseIRIString === 'string') {
+      this.writer.add(`@base <${escapeIRI(this.baseIRIString)}> .`);
+      this.writer.newLine(1);
+    }
+
     // Write the prefixes
     for (const prefix in this.prefixes) {
       if (typeof prefix === 'string') {
