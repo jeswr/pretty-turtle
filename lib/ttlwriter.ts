@@ -7,17 +7,23 @@
  * written is also output.
  */
 import type * as RDF from '@rdfjs/types';
-import { DataFactory as DF, Quad, Term } from 'n3';
+
+import {
+  DataFactory as DF, Quad, Term,
+  // @ts-expect-error
+  BaseIRI,
+} from 'n3';
 import { termToString } from 'rdf-string-ttl';
 import Store from './volatile-store';
 import Writer from './writer';
-import { escapeStringRDF } from './escape';
+import { escapeStringRDF, escapeIRI } from './escape';
 
 export interface Options {
   prefixes?: Record<string, string>;
   format?: string;
   compact?: boolean;
   isImpliedBy?: boolean;
+  baseIri?: string;
 }
 
 function getNamespace(str: string) {
@@ -50,6 +56,8 @@ export class TTLWriter {
 
   private currentGraph: RDF.Term = DF.defaultGraph();
 
+  private baseIRI: BaseIRI | null = null;
+
   constructor(
     // eslint-disable-next-line no-unused-vars
     private store: Store,
@@ -70,6 +78,10 @@ export class TTLWriter {
     }
 
     this.isImpliedBy = options?.isImpliedBy || false;
+
+    if (BaseIRI.supports(options.baseIri)) {
+      this.baseIRI = new BaseIRI(options.baseIri);
+    }
 
     if (!this.isN3) {
       const graphs = store.getGraphs(null, null, null);
@@ -249,7 +261,11 @@ export class TTLWriter {
           return `${this.prefixRev[namespace]}:${term.value.slice(namespace.length)}`;
         }
       }
-    } if (term.termType === 'Literal' && (term.datatypeString === 'http://www.w3.org/2001/XMLSchema#integer'
+    }
+    if (term.termType === 'NamedNode' && this.baseIRI !== null) {
+      return `<${escapeIRI(this.baseIRI.toRelative(term.value))}>`;
+    }
+    if (term.termType === 'Literal' && (term.datatypeString === 'http://www.w3.org/2001/XMLSchema#integer'
       || term.datatypeString === 'http://www.w3.org/2001/XMLSchema#boolean')) {
       return term.value;
     }

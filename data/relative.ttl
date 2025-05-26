@@ -1,0 +1,5 @@
+@prefix ex: <http://example.com/ns#> .
+
+<#jesse> a ex:Person .
+</path#jesse> a ex:Person .
+<../path#jesse> a ex:Person .
