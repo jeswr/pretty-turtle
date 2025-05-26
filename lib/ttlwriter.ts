@@ -7,17 +7,24 @@
  * written is also output.
  */
 import type * as RDF from '@rdfjs/types';
-import { DataFactory as DF, Quad, Term } from 'n3';
+
+import {
+  DataFactory as DF, Quad, Term,
+  // @ts-expect-error
+  BaseIRI,
+} from 'n3';
 import { termToString } from 'rdf-string-ttl';
 import Store from './volatile-store';
 import Writer from './writer';
-import { escapeStringRDF } from './escape';
+import { escapeStringRDF, escapeIRI } from './escape';
 
 export interface Options {
   prefixes?: Record<string, string>;
   format?: string;
   compact?: boolean;
   isImpliedBy?: boolean;
+  baseIri?: string;
+  explicitBaseIRI?: boolean;
 }
 
 function getNamespace(str: string) {
@@ -50,6 +57,12 @@ export class TTLWriter {
 
   private currentGraph: RDF.Term = DF.defaultGraph();
 
+  private baseIRI: BaseIRI | null = null;
+
+  private baseIRIString: string | undefined = undefined;
+
+  private explicitBaseIRI = false;
+
   constructor(
     // eslint-disable-next-line no-unused-vars
     private store: Store,
@@ -70,6 +83,12 @@ export class TTLWriter {
     }
 
     this.isImpliedBy = options?.isImpliedBy || false;
+    this.explicitBaseIRI = options?.explicitBaseIRI || false;
+
+    if (BaseIRI.supports(options.baseIri)) {
+      this.baseIRI = new BaseIRI(options.baseIri);
+      this.baseIRIString = options.baseIri;
+    }
 
     if (!this.isN3) {
       const graphs = store.getGraphs(null, null, null);
@@ -123,6 +142,12 @@ export class TTLWriter {
   }
 
   async write() {
+    // Write the BASE statement if explicitBaseIRI is enabled
+    if (this.explicitBaseIRI && typeof this.baseIRIString === 'string') {
+      this.writer.add(`@base <${escapeIRI(this.baseIRIString)}> .`);
+      this.writer.newLine(1);
+    }
+
     // Write the prefixes
     for (const prefix in this.prefixes) {
       if (typeof prefix === 'string') {
@@ -249,7 +274,11 @@ export class TTLWriter {
           return `${this.prefixRev[namespace]}:${term.value.slice(namespace.length)}`;
         }
       }
-    } if (term.termType === 'Literal' && (term.datatypeString === 'http://www.w3.org/2001/XMLSchema#integer'
+    }
+    if (term.termType === 'NamedNode' && this.baseIRI !== null) {
+      return `<${escapeIRI(this.baseIRI.toRelative(term.value))}>`;
+    }
+    if (term.termType === 'Literal' && (term.datatypeString === 'http://www.w3.org/2001/XMLSchema#integer'
       || term.datatypeString === 'http://www.w3.org/2001/XMLSchema#boolean')) {
       return term.value;
     }

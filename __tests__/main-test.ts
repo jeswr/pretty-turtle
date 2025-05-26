@@ -1,22 +1,41 @@
-import { DataFactory, Parser } from 'n3';
+import { DataFactory, Parser } from 'n3-test';
 import fs from 'fs';
 import path from 'path';
+import { mapTerms } from 'rdf-terms';
 import { write } from '../lib';
 import 'jest-rdf';
 
-async function getQuads(file: string, _prefixes: Record<string, string> = {}, format: string = 'text/turtle', dirname = 'data', compact = false) {
-  const parser = new Parser({ rdfStar: true, format } as any);
+async function getQuads(file: string, _prefixes: Record<string, string> = {}, format: string = 'text/turtle', dirname = 'data', compact = false, replaceImplies = false) {
+  const baseIri = 'http://example.base/ns/a/b/c/d';
+  const parser = new Parser({ rdfStar: true, format, baseIRI: baseIri } as any);
   // @ts-expect-error
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
   const prefixes = { ..._prefixes };
-  const quads = parser.parse(fs.readFileSync(path.join(__dirname, '..', dirname, file)).toString(), undefined, (prefix, iri) => {
+  let quads = parser.parse(fs.readFileSync(path.join(__dirname, '..', dirname, file)).toString(), undefined, (prefix, iri) => {
     prefixes[prefix] = iri.value;
   });
 
+  if (replaceImplies) {
+    quads = quads.map((quad) => mapTerms(quad, (term) => {
+      if (term.termType === 'NamedNode' && term.value === 'http://www.w3.org/2000/10/swap/log#implies') {
+        return DataFactory.namedNode('http://www.w3.org/2000/10/swap/log#isImpliedBy');
+      }
+      return term;
+    }));
+  }
+
   return {
     quads,
-    string: await write(quads, { prefixes, format, compact }),
+    string: await write(quads, {
+      prefixes,
+      format,
+      compact,
+      baseIri,
+      explicitBaseIRI: file.includes('explicit-base'),
+      isImpliedBy: replaceImplies,
+    }),
+    baseIri,
   };
 }
 
@@ -24,47 +43,52 @@ const loose: Record<string, boolean | undefined> = {
   'bnodes5.ttl': true,
 };
 
-it('It should correctly write turtle files', async () => {
-  for (const file of fs.readdirSync(path.join(__dirname, '..', 'data'))) {
-    try {
-      const { string, quads } = await getQuads(file);
+it.each(
+  fs.readdirSync(path.join(__dirname, '..', 'data')),
+)('It should correctly write turtle files [file %s]', async (file: string) => {
+  try {
+    const { string, quads, baseIri } = await getQuads(file);
 
-      if (loose[file]) {
-        // If loose we only need the quads to match when we re-parse the string
-        expect((new Parser()).parse(string)).toBeRdfIsomorphic(quads);
-      } else {
-        // If not loose we expect an exact string match
-        expect(string.replace(/b\d+_/g, '')).toEqual(fs.readFileSync(path.join(__dirname, '..', 'data', file)).toString());
-      }
-    } catch (e: any) {
-      // Suppress errors on {| syntax since N3 cannot parse it for now
-      if (!`${e}`.includes('Unexpected "|"')) {
-        throw e;
-      }
+    if (loose[file]) {
+      // If loose we only need the quads to match when we re-parse the string
+      expect((new Parser({ baseIRI: baseIri })).parse(string)).toBeRdfIsomorphic(quads);
+    } else {
+      // If not loose we expect an exact string match
+      expect(string.replace(/b\d+_/g, '')).toEqual(fs.readFileSync(path.join(__dirname, '..', 'data', file)).toString());
+    }
+  } catch (e: any) {
+    // Suppress errors on {| syntax since N3 cannot parse it for now
+    if (!`${e}`.includes('Unexpected "|"')) {
+      throw e;
     }
   }
 });
 
-it('It should correctly write N3 files', async () => {
-  for (const file of fs.readdirSync(path.join(__dirname, '..', 'n3_data'))) {
-    const { string, quads } = await getQuads(file, undefined, 'text/n3', 'n3_data');
+const files = fs.readdirSync(path.join(__dirname, '..', 'n3_data'));
+const matrix: [string, boolean, boolean][] = [];
 
-    const parser = new Parser({ format: 'text/n3' });
-    // @ts-expect-error
-    // eslint-disable-next-line no-underscore-dangle
-    parser._supportsRDFStar = true;
-    expect(parser.parse(string)).toBeRdfIsomorphic(quads);
+for (const file of files) {
+  for (const replaceImplies of [false, true]) {
+    for (const compact of [false, true]) {
+      matrix.push([file, replaceImplies, compact]);
+    }
+  }
+}
+
+it.each(
+  matrix,
+)('It should correctly write N3 files [file %s] [replaceImplies %s] [compact %s]', async (file: string, replaceImplies: boolean, compact: boolean) => {
+  const { string, quads } = await getQuads(file, undefined, 'text/n3', 'n3_data', compact, replaceImplies);
+  const parser = new Parser({ format: 'text/n3' });
+
+  if (!compact && replaceImplies) {
+    console.log(string, quads);
   }
 
-  for (const file of fs.readdirSync(path.join(__dirname, '..', 'n3_data'))) {
-    const { string, quads } = await getQuads(file, undefined, 'text/n3', 'n3_data', true);
-
-    const parser = new Parser({ format: 'text/n3' });
-    // @ts-expect-error
-    // eslint-disable-next-line no-underscore-dangle
-    parser._supportsRDFStar = true;
-    expect(parser.parse(string)).toBeRdfIsomorphic(quads);
-  }
+  // @ts-expect-error
+  // eslint-disable-next-line no-underscore-dangle
+  parser._supportsRDFStar = true;
+  expect(parser.parse(string)).toBeRdfIsomorphic(quads);
 });
 
 it('Should throw an error on unsupported formats', async () => {

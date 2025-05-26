@@ -1,0 +1,8 @@
+@base <http://example.base/ns/a/b/c/d> .
+@prefix ex: <http://example.com/ns#> .
+
+<#jesse> a ex:Person .
+
+<../path#jesse> a ex:Person .
+
+<path#jesse> a ex:Person .
