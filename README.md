@@ -28,6 +28,7 @@ interface Options {
   isImpliedBy?: boolean;
   baseIri?: string;
   explicitBaseIRI?: boolean;
+  ordered?: boolean;
 }
 ```
 
@@ -103,6 +104,22 @@ const str = await write(quads, {
 });
 ```
 
+### `ordered`
+
+When set to `true`, the output will be deterministic with consistent ordering. This sorts prefixes, subjects, predicates, and objects alphabetically to ensure the same input always produces the same output.
+
+```ts
+// Ordered output - useful for consistent serialization
+const str = await write(quads, {
+  ordered: true
+});
+```
+
+This is particularly useful for:
+- Testing and comparing outputs
+- Version control where you want consistent diffs
+- Caching scenarios where deterministic output is important
+
 ## Complete Example
 
 ```ts
@@ -116,7 +133,8 @@ const str = await write(quads, {
   },
   baseIri: "http://example.org/base/",
   explicitBaseIRI: true,
-  compact: false
+  compact: false,
+  ordered: true
 });
 ```
 
