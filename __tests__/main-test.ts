@@ -1,16 +1,17 @@
 import { DataFactory, Parser } from 'n3-test';
 import fs from 'fs';
 import path from 'path';
-import { write } from '../lib';
+import { write, Options } from '../lib';
 import 'jest-rdf';
 
-async function getQuads(file: string, _prefixes: Record<string, string> = {}, format: string = 'text/turtle', dirname = 'data', compact = false) {
+async function getQuads(file: string, dirname = 'data', options: Options = {}) {
   const baseIri = 'http://example.base/ns/a/b/c/d';
+  const format = options.format || 'text/turtle';
   const parser = new Parser({ rdfStar: true, format, baseIRI: baseIri } as any);
   // @ts-expect-error
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
-  const prefixes = { ..._prefixes };
+  const prefixes = { ...options.prefixes };
   const quads = parser.parse(fs.readFileSync(path.join(__dirname, '..', dirname, file)).toString(), undefined, (prefix, iri) => {
     prefixes[prefix] = iri.value;
   });
@@ -19,10 +20,11 @@ async function getQuads(file: string, _prefixes: Record<string, string> = {}, fo
     quads,
     string: await write(quads, {
       prefixes,
-      format,
-      compact,
+      format: options.format,
+      compact: options.compact,
       baseIri,
       explicitBaseIRI: file.includes('explicit-base'),
+      ordered: options.ordered,
     }),
     baseIri,
   };
@@ -32,12 +34,20 @@ const loose: Record<string, boolean | undefined> = {
   'bnodes5.ttl': true,
 };
 
-it('It should correctly write turtle files', async () => {
+const options: Options[] = [];
+
+for (const compact of [true, false]) {
+  for (const ordered of [true, false]) {
+    options.push({ compact, ordered });
+  }
+}
+
+it.each(options)('It should correctly write turtle files [options: %s]', async (option) => {
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'data'))) {
     try {
-      const { string, quads, baseIri } = await getQuads(file);
+      const { string, quads, baseIri } = await getQuads(file, 'data', option);
 
-      if (loose[file]) {
+      if (loose[file] || option.ordered || option.compact) {
         // If loose we only need the quads to match when we re-parse the string
         expect((new Parser({ baseIRI: baseIri })).parse(string)).toBeRdfIsomorphic(quads);
       } else {
@@ -53,9 +63,9 @@ it('It should correctly write turtle files', async () => {
   }
 });
 
-it('It should correctly write N3 files', async () => {
+it.each([options])('It should correctly write N3 files [options: %s]', async (option) => {
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'n3_data'))) {
-    const { string, quads, baseIri } = await getQuads(file, undefined, 'text/n3', 'n3_data');
+    const { string, quads, baseIri } = await getQuads(file, 'n3_data', { format: 'text/n3', ...option });
 
     const parser = new Parser({ format: 'text/n3', baseIRI: baseIri });
     // @ts-expect-error
@@ -65,7 +75,7 @@ it('It should correctly write N3 files', async () => {
   }
 
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'n3_data'))) {
-    const { string, quads } = await getQuads(file, undefined, 'text/n3', 'n3_data', true);
+    const { string, quads } = await getQuads(file, 'n3_data', { format: 'text/n3', ...option });
 
     const parser = new Parser({ format: 'text/n3' });
     // @ts-expect-error
@@ -84,9 +94,11 @@ it('Should throw an error on unsupported formats', async () => {
 it('Should should strip unnecessary prefixes', async () => {
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'data'))) {
     try {
-      const { string, quads } = await getQuads(file, {
-        alt: 'http://example.alt.org/',
-        v1: 'http://example.v1.org/',
+      const { string, quads } = await getQuads(file, 'data', {
+        prefixes: {
+          alt: 'http://example.alt.org/',
+          v1: 'http://example.v1.org/',
+        },
       });
 
       if (loose[file]) {
