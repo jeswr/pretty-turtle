@@ -1,13 +1,16 @@
 import { DataFactory, Parser } from 'n3-test';
+import type N3 from 'n3';
 import fs from 'fs';
 import path from 'path';
-import { write, Options } from '../lib';
 import 'jest-rdf';
+// @ts-ignore
+import perms from 'array-permutation';
+import { write, Options } from '../lib';
 
 async function getQuads(file: string, dirname = 'data', options: Options = {}) {
   const baseIri = 'http://example.base/ns/a/b/c/d';
   const format = options.format || 'text/turtle';
-  const parser = new Parser({ rdfStar: true, format, baseIRI: baseIri } as any);
+  const parser: N3.Parser = new Parser({ rdfStar: true, format, baseIRI: baseIri } as any);
   // @ts-expect-error
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
@@ -27,6 +30,7 @@ async function getQuads(file: string, dirname = 'data', options: Options = {}) {
       ordered: options.ordered,
     }),
     baseIri,
+    prefixes,
   };
 }
 
@@ -42,10 +46,41 @@ for (const compact of [true, false]) {
   }
 }
 
+function getMagnitude(num: number) {
+  for (let i = 0; ; i += 1) {
+    if (num < (10 ** i)) {
+      return i;
+    }
+  }
+}
+
 it.each(options)('It should correctly write turtle files [options: %s]', async (option) => {
   for (const file of fs.readdirSync(path.join(__dirname, '..', 'data'))) {
     try {
-      const { string, quads, baseIri } = await getQuads(file, 'data', option);
+      const {
+        string, quads, baseIri, prefixes,
+      } = await getQuads(file, 'data', option);
+
+      if (option.ordered) {
+        let i = 0;
+        for (const perm of perms(quads)) {
+          i += 1;
+          if (i > 5000 && i % 100 !== 0) {
+            // Limit the number of permutations to test
+            // eslint-disable-next-line no-continue
+            continue;
+          } else if (i > 10000 && i % (10 ** (getMagnitude(i) - 2)) !== 0) {
+            // eslint-disable-next-line no-continue
+            continue;
+          } else if (i > 10 ** 6) {
+            break;
+          }
+          // If ordered we expect the quads to be in the same order as the original file
+          expect(await write(perm, {
+            format: 'text/turtle', baseIri: 'http://example.base/ns/a/b/c/d', explicitBaseIRI: file.includes('explicit-base'), ...option, prefixes,
+          })).toEqual(string);
+        }
+      }
 
       if (loose[file] || option.ordered || option.compact) {
         // If loose we only need the quads to match when we re-parse the string

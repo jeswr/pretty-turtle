@@ -18,6 +18,24 @@ import Store from './volatile-store';
 import Writer from './writer';
 import { escapeStringRDF, escapeIRI } from './escape';
 
+const compareTerms = (a: RDF.Term, b: RDF.Term): number => {
+  for (const key of ['termType', 'value'] as const) {
+    const comparison = a[key].localeCompare(b[key]);
+    if (comparison !== 0) {
+      return comparison;
+    }
+  }
+  if (a.termType === 'Literal' && b.termType === 'Literal') {
+    if (a.datatype.value !== b.datatype.value) {
+      return a.datatype.value.localeCompare(b.datatype.value);
+    }
+    if (a.language !== b.language) {
+      return a.language.localeCompare(b.language);
+    }
+  }
+  return 0;
+};
+
 /**
  * Configuration options for the turtle/N3 writer
  */
@@ -255,7 +273,7 @@ export class TTLWriter {
     const subjects = this.store.getSubjects(null, null, this.currentGraph);
     if (this.ordered) {
       // Sort subjects alphabetically if ordered is true
-      subjects.sort((a, b) => a.value.localeCompare(b.value));
+      subjects.sort((a, b) => compareTerms(a, b));
     }
     for (const subject of subjects) {
       if (subject.termType === 'NamedNode') {
@@ -268,7 +286,7 @@ export class TTLWriter {
     const bnodes = this.store.getSubjects(null, null, this.currentGraph).filter((s) => s.termType === 'BlankNode');
     if (this.ordered) {
       // Sort blank nodes alphabetically if ordered is true
-      bnodes.sort((a, b) => a.value.localeCompare(b.value));
+      bnodes.sort((a, b) => compareTerms(a, b));
     }
 
     for (const subject of bnodes) {
@@ -292,7 +310,7 @@ export class TTLWriter {
     const b2nodes = this.store.getSubjects(null, null, this.currentGraph).filter((s) => s.termType === 'BlankNode');
     if (this.ordered) {
       // Sort blank nodes alphabetically if ordered is true
-      b2nodes.sort((a, b) => a.value.localeCompare(b.value));
+      b2nodes.sort((a, b) => compareTerms(a, b));
     }
 
     for (const subject of b2nodes) {
@@ -312,7 +330,7 @@ export class TTLWriter {
 
     if (this.ordered) {
       // Sort subjects alphabetically if ordered is true
-      subjects2.sort((a, b) => a.value.localeCompare(b.value));
+      subjects2.sort((a, b) => compareTerms(a, b));
     }
 
     for (const subject of subjects2) {
@@ -405,7 +423,7 @@ export class TTLWriter {
 
     if (this.ordered) {
       // Sort predicates alphabetically if ordered is true
-      predicates.sort((a, b) => a.value.localeCompare(b.value));
+      predicates.sort((a, b) => compareTerms(a, b));
     }
 
     return this.writeGivenTurtlePredicates(
@@ -425,11 +443,22 @@ export class TTLWriter {
         DF.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
         this.currentGraph,
       );
+
+      if (this.ordered) {
+        // Sort types alphabetically if ordered is true
+        types.sort((a, b) => compareTerms(a, b));
+      }
+
       if (types.length > 0) {
         semi = true;
         this.writer.add('a ');
         await this.writeTurtleObjects(types);
       }
+    }
+
+    if (this.ordered) {
+      // Sort predicates alphabetically if ordered is true
+      predicates.sort((a, b) => compareTerms(a, b));
     }
 
     for (const predicate of predicates) {
@@ -449,7 +478,7 @@ export class TTLWriter {
         const objects = this.store.getObjectsOnce(term, predicate, this.currentGraph);
         if (this.ordered) {
           // Sort objects alphabetically if ordered is true
-          objects.sort((a, b) => a.value.localeCompare(b.value));
+          objects.sort((a, b) => compareTerms(a, b));
         }
 
         await this.writeTurtleObjects(
