@@ -215,9 +215,10 @@ export class TTLWriter {
       }
     }
 
-    const termList = [...terms].sort();
+    const termList = [...terms];
+    termList.sort();
 
-    for (const key of [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)]) {
+    for (const key of [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)].sort()) {
       const iri = prefixes[key] || defaultPrefixes[key];
       if (!(iri in this.prefixRev) && termList.some((term) => term.startsWith(iri))) {
         this.prefixRev[iri] = key;
@@ -242,7 +243,7 @@ export class TTLWriter {
       prefixes.sort();
     }
 
-    for (const prefix of Object.keys(this.prefixes)) {
+    for (const prefix of prefixes) {
       if (typeof prefix === 'string') {
         this.writer.add(`@prefix ${prefix}: <${this.prefixes[prefix]}> .`);
         this.writer.newLine(1);
@@ -428,7 +429,7 @@ export class TTLWriter {
 
     return this.writeGivenTurtlePredicates(
       term,
-      this.store.getPredicates(term, null, this.currentGraph),
+      predicates,
     );
   }
 
@@ -454,11 +455,6 @@ export class TTLWriter {
         this.writer.add('a ');
         await this.writeTurtleObjects(types);
       }
-    }
-
-    if (this.ordered) {
-      // Sort predicates alphabetically if ordered is true
-      predicates.sort((a, b) => compareTerms(a, b));
     }
 
     for (const predicate of predicates) {
@@ -508,6 +504,12 @@ export class TTLWriter {
         }
         nonBlankObjects.push(object);
       }
+    }
+
+    if (this.ordered) {
+      // Sort objects alphabetically if ordered is true
+      blankObjects.sort((a, b) => compareTerms(a, b));
+      nonBlankObjects.sort((a, b) => compareTerms(a, b));
     }
 
     let comma = false;
