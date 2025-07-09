@@ -36,6 +36,7 @@ async function getQuads(file: string, dirname = 'data', options: Options = {}) {
 
 const loose: Record<string, boolean | undefined> = {
   'bnodes5.ttl': true,
+  'catalog.ttl': true,
 };
 
 const options: Options[] = [];

@@ -218,7 +218,14 @@ export class TTLWriter {
     const termList = [...terms];
     termList.sort();
 
-    for (const key of [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)].sort()) {
+    const allPrefixKeys = [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)];
+
+    if (this.ordered) {
+      // Sort prefixes alphabetically if ordered is true
+      allPrefixKeys.sort();
+    }
+
+    for (const key of allPrefixKeys) {
       const iri = prefixes[key] || defaultPrefixes[key];
       if (!(iri in this.prefixRev) && termList.some((term) => term.startsWith(iri))) {
         this.prefixRev[iri] = key;
