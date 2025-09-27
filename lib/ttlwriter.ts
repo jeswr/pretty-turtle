@@ -18,6 +18,24 @@ import Store from './volatile-store';
 import Writer from './writer';
 import { escapeStringRDF, escapeIRI } from './escape';
 
+const compareTerms = (a: RDF.Term, b: RDF.Term): number => {
+  for (const key of ['termType', 'value'] as const) {
+    const comparison = a[key].localeCompare(b[key]);
+    if (comparison !== 0) {
+      return comparison;
+    }
+  }
+  if (a.termType === 'Literal' && b.termType === 'Literal') {
+    if (a.datatype.value !== b.datatype.value) {
+      return a.datatype.value.localeCompare(b.datatype.value);
+    }
+    if (a.language !== b.language) {
+      return a.language.localeCompare(b.language);
+    }
+  }
+  return 0;
+};
+
 /**
  * Configuration options for the turtle/N3 writer
  */
@@ -79,6 +97,16 @@ export interface Options {
    * When enabled, output will include: `@base <http://example.org/base/> .`
    */
   explicitBaseIRI?: boolean;
+
+  /**
+   * When set to `true`, the output will be ordered.
+   *
+   * @defaultValue false
+   *
+   * @example
+   * When enabled, the output will maintain a consistent order of triples.
+   */
+  ordered?: boolean;
 }
 
 function getNamespace(str: string) {
@@ -116,6 +144,8 @@ export class TTLWriter {
   private baseIRIString: string | undefined = undefined;
 
   private explicitBaseIRI = false;
+
+  private ordered: boolean = false;
 
   constructor(
     // eslint-disable-next-line no-unused-vars
@@ -156,6 +186,8 @@ export class TTLWriter {
       }
     }
 
+    this.ordered = options?.ordered || false;
+
     const terms: Set<string> = new Set();
 
     function addTerm(term: RDF.Term) {
@@ -184,8 +216,16 @@ export class TTLWriter {
     }
 
     const termList = [...terms];
+    termList.sort();
 
-    for (const key of [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)]) {
+    const allPrefixKeys = [...Object.keys(prefixes), ...Object.keys(defaultPrefixes)];
+
+    if (this.ordered) {
+      // Sort prefixes alphabetically if ordered is true
+      allPrefixKeys.sort();
+    }
+
+    for (const key of allPrefixKeys) {
       const iri = prefixes[key] || defaultPrefixes[key];
       if (!(iri in this.prefixRev) && termList.some((term) => term.startsWith(iri))) {
         this.prefixRev[iri] = key;
@@ -203,7 +243,14 @@ export class TTLWriter {
     }
 
     // Write the prefixes
-    for (const prefix in this.prefixes) {
+    const prefixes = Object.keys(this.prefixes);
+
+    if (this.ordered) {
+      // Sort prefixes alphabetically if ordered is true
+      prefixes.sort();
+    }
+
+    for (const prefix of prefixes) {
       if (typeof prefix === 'string') {
         this.writer.add(`@prefix ${prefix}: <${this.prefixes[prefix]}> .`);
         this.writer.newLine(1);
@@ -231,14 +278,26 @@ export class TTLWriter {
 
   private async writeGraph() {
     // First write Named Node subjects
-    for (const subject of this.store.getSubjects(null, null, this.currentGraph)) {
+    const subjects = this.store.getSubjects(null, null, this.currentGraph);
+    if (this.ordered) {
+      // Sort subjects alphabetically if ordered is true
+      subjects.sort((a, b) => compareTerms(a, b));
+    }
+    for (const subject of subjects) {
       if (subject.termType === 'NamedNode') {
         await this.writeTurtleSubject(subject);
       }
     }
 
     // Then write blank node subjects that can be anonymized at the top level
-    for (const subject of this.store.getSubjects(null, null, this.currentGraph)) {
+
+    const bnodes = this.store.getSubjects(null, null, this.currentGraph).filter((s) => s.termType === 'BlankNode');
+    if (this.ordered) {
+      // Sort blank nodes alphabetically if ordered is true
+      bnodes.sort((a, b) => compareTerms(a, b));
+    }
+
+    for (const subject of bnodes) {
       if (
         subject.termType === 'BlankNode'
         && !this.explicitBnodes.has(subject.value)
@@ -255,7 +314,14 @@ export class TTLWriter {
     // (it is not an explicit bnode,
     // occurs as the object of one quad,
     // and only as the subject in other quads)
-    for (const subject of this.store.getSubjects(null, null, this.currentGraph)) {
+
+    const b2nodes = this.store.getSubjects(null, null, this.currentGraph).filter((s) => s.termType === 'BlankNode');
+    if (this.ordered) {
+      // Sort blank nodes alphabetically if ordered is true
+      b2nodes.sort((a, b) => compareTerms(a, b));
+    }
+
+    for (const subject of b2nodes) {
       // Ensure still in store as subject
       if (
         subject.termType === 'BlankNode' && !(
@@ -268,7 +334,14 @@ export class TTLWriter {
       }
     }
 
-    for (const subject of this.store.getSubjects(null, null, this.currentGraph)) {
+    const subjects2 = this.store.getSubjects(null, null, this.currentGraph);
+
+    if (this.ordered) {
+      // Sort subjects alphabetically if ordered is true
+      subjects2.sort((a, b) => compareTerms(a, b));
+    }
+
+    for (const subject of subjects2) {
       // Ensure still in store as subject
       if (this.store.getQuads(subject, null, null, this.currentGraph).length > 0) {
         if (subject.termType === 'BlankNode') {
@@ -354,9 +427,16 @@ export class TTLWriter {
   }
 
   private async writeTurtlePredicates(term: Term) {
+    const predicates = this.store.getPredicates(term, null, this.currentGraph);
+
+    if (this.ordered) {
+      // Sort predicates alphabetically if ordered is true
+      predicates.sort((a, b) => compareTerms(a, b));
+    }
+
     return this.writeGivenTurtlePredicates(
       term,
-      this.store.getPredicates(term, null, this.currentGraph),
+      predicates,
     );
   }
 
@@ -371,6 +451,12 @@ export class TTLWriter {
         DF.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
         this.currentGraph,
       );
+
+      if (this.ordered) {
+        // Sort types alphabetically if ordered is true
+        types.sort((a, b) => compareTerms(a, b));
+      }
+
       if (types.length > 0) {
         semi = true;
         this.writer.add('a ');
@@ -391,8 +477,15 @@ export class TTLWriter {
           await this.termToString(predicate),
         );
         this.writer.add(' ');
+
+        const objects = this.store.getObjectsOnce(term, predicate, this.currentGraph);
+        if (this.ordered) {
+          // Sort objects alphabetically if ordered is true
+          objects.sort((a, b) => compareTerms(a, b));
+        }
+
         await this.writeTurtleObjects(
-          this.store.getObjectsOnce(term, predicate, this.currentGraph),
+          objects,
           term,
           predicate,
         );
@@ -418,6 +511,12 @@ export class TTLWriter {
         }
         nonBlankObjects.push(object);
       }
+    }
+
+    if (this.ordered) {
+      // Sort objects alphabetically if ordered is true
+      blankObjects.sort((a, b) => compareTerms(a, b));
+      nonBlankObjects.sort((a, b) => compareTerms(a, b));
     }
 
     let comma = false;
