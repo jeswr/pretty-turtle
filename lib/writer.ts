@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-type writeFunc = (chunk: string, encoding: string, done?: Function) => void;
+type writeFunc = (chunk: string, encoding: string, done?: () => void) => void;
 
 /**
  * Convenience class used to write chunks
@@ -11,9 +11,9 @@ export default class Writer {
 
   private compact: boolean = false;
 
-  end: (done?: Function) => void;
+  end: (done?: () => void) => void;
 
-  constructor(options: { write: writeFunc, end: (done?: Function) => void, compact?: boolean }) {
+  constructor(options: { write: writeFunc, end: (done?: () => void) => void, compact?: boolean }) {
     this.write = options.write;
     this.end = options.end;
     this.compact = options.compact || false;

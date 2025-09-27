@@ -3,15 +3,19 @@ import type N3 from 'n3';
 import fs from 'fs';
 import path from 'path';
 import 'jest-rdf';
-// @ts-ignore
+// @ts-expect-error array-permutation package lacks TypeScript declarations
 import perms from 'array-permutation';
 import { write, Options } from '../lib';
 
 async function getQuads(file: string, dirname = 'data', options: Options = {}) {
   const baseIri = 'http://example.base/ns/a/b/c/d';
   const format = options.format || 'text/turtle';
-  const parser: N3.Parser = new Parser({ rdfStar: true, format, baseIRI: baseIri } as any);
-  // @ts-expect-error
+  const parser: N3.Parser = new Parser({
+    rdfStar: true,
+    format,
+    baseIRI: baseIri,
+  } as N3.ParserOptions);
+  // @ts-expect-error RDF-star support property not in official types but exists at runtime
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
   const prefixes = { ...options.prefixes };
@@ -121,7 +125,7 @@ it.each(testCases)('It should correctly write turtle file $file [options: $optio
       // If not loose we expect an exact string match
       expect(string.replace(/b\d+_/g, '')).toEqual(fs.readFileSync(path.join(__dirname, '..', 'data', file)).toString());
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Suppress errors on {| syntax since N3 cannot parse it for now
     if (!`${e}`.includes('Unexpected "|"')) {
       throw e;
@@ -143,7 +147,7 @@ it.each(n3TestCases)('It should correctly write N3 file $file [options: $option]
   const { string, quads, baseIri } = await getQuads(file, 'n3_data', { format: 'text/n3', ...option });
 
   const parser = new Parser({ format: 'text/n3', baseIRI: baseIri });
-  // @ts-ignore
+  // @ts-expect-error RDF-star support property not in official types but exists at runtime
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
   expect(parser.parse(string)).toBeRdfIsomorphic(quads);
@@ -153,7 +157,7 @@ it.each(n3TestCases)('It should correctly write N3 file $file without baseIRI [o
   const { string, quads } = await getQuads(file, 'n3_data', { format: 'text/n3', ...option });
 
   const parser = new Parser({ format: 'text/n3' });
-  // @ts-ignore
+  // @ts-expect-error RDF-star support property not in official types but exists at runtime
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
   expect(parser.parse(string)).toBeRdfIsomorphic(quads);
@@ -162,7 +166,7 @@ it.each(n3TestCases)('It should correctly write N3 file $file without baseIRI [o
 it('Should throw an error on unsupported formats', async () => {
   const { quads } = await getQuads('bnodes5.ttl');
 
-  await expect(write(quads, { format: 'text/unsupported' as any })).rejects.toThrow();
+  await expect(write(quads, { format: 'text/unsupported' })).rejects.toThrow();
 });
 
 it.each(dataFiles)('Should strip unnecessary prefixes for file %s', async (file) => {
@@ -181,7 +185,7 @@ it.each(dataFiles)('Should strip unnecessary prefixes for file %s', async (file)
       // If not loose we expect an exact string match
       expect(string.replace(/b\d+_/g, '')).toEqual(fs.readFileSync(path.join(__dirname, '..', 'data', file)).toString());
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Suppress errors on {| syntax since N3 cannot parse it for now
     if (!`${e}`.includes('Unexpected "|"')) {
       throw e;

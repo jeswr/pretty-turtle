@@ -10,7 +10,7 @@ import type * as RDF from '@rdfjs/types';
 
 import {
   DataFactory as DF, Quad, Term,
-  // @ts-expect-error
+  // @ts-expect-error BaseIRI type not exported in n3.js but exists at runtime
   BaseIRI,
 } from 'n3';
 import { termToString } from 'rdf-string-ttl';
@@ -413,10 +413,10 @@ export class TTLWriter {
       if (!term.graph.equals(DF.defaultGraph())) {
         throw new Error('Default graph expected on nested quads');
       }
-      return `<<${await this.termToString(term.subject as any)} ${term.predicate.termType === 'NamedNode'
+      return `<<${await this.termToString(term.subject as Term)} ${term.predicate.termType === 'NamedNode'
           && term.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
         ? 'a'
-        : await this.termToString(term.predicate as any)} ${await this.termToString(term.object as any)}>>`;
+        : await this.termToString(term.predicate as Term)} ${await this.termToString(term.object as Term)}>>`;
     }
 
     if (term.termType === 'Literal' && !WELL_DEFINED_DATATYPES.includes(term.datatype.value)) {
@@ -499,8 +499,8 @@ export class TTLWriter {
     for (const object of objects) {
       if (object.termType === 'BlankNode'
         && [
-          ...this.store.match(null, null, object, this.currentGraph as any),
-          ...this.store.match(null, object, null, this.currentGraph as any),
+          ...this.store.match(null, null, object, this.currentGraph as Term),
+          ...this.store.match(null, object, null, this.currentGraph as Term),
         ].length === 0
         && !this.explicitBnodes.has(object.value)
       ) {
@@ -532,14 +532,18 @@ export class TTLWriter {
       }
 
       this.writer.add(await this.termToString(object));
-      // @ts-ignore (n3.js type error?)
+      // @ts-expect-error Property 'termType' does not exist due to n3.js type definitions
       lastQuad = object.termType === 'Quad';
 
       if (subject && predicate) {
-        const quad = DF.quad(subject as any, predicate as any, object as any);
+        const quad = DF.quad(
+          subject as RDF.Quad_Subject,
+          predicate as RDF.Quad_Predicate,
+          object as RDF.Quad_Object,
+        );
         if (this.store.getQuads(quad, null, null, this.currentGraph).length > 0) {
           this.writer.add(' {| ');
-          await this.writeTurtlePredicates(quad as any);
+          await this.writeTurtlePredicates(quad as unknown as Term);
           this.writer.add(' |}');
         }
       }
@@ -577,10 +581,14 @@ export class TTLWriter {
 
         // Write annotations as appropriate
         if (subject && predicate) {
-          const quad = DF.quad(subject as any, predicate as any, blank as any);
+          const quad = DF.quad(
+            subject as RDF.Quad_Subject,
+            predicate as RDF.Quad_Predicate,
+            blank as RDF.Quad_Object,
+          );
           if (this.store.getQuads(quad, null, null, this.currentGraph).length > 0) {
             this.writer.add(' {| ');
-            await this.writeTurtlePredicates(quad as any);
+            await this.writeTurtlePredicates(quad as unknown as Term);
             this.writer.add(' |}');
           }
         }
