@@ -169,7 +169,7 @@ export class TTLWriter {
     this.isImpliedBy = options?.isImpliedBy || false;
     this.explicitBaseIRI = options?.explicitBaseIRI || false;
 
-    if (BaseIRI.supports(options.baseIri)) {
+    if (options.baseIri && BaseIRI.supports(options.baseIri)) {
       this.baseIRI = new BaseIRI(options.baseIri);
       this.baseIRIString = options.baseIri;
     }
