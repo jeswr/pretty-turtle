@@ -100,6 +100,6 @@
   },
   "dependencies": {
     "n3": "^1.25.2",
-    "rdf-string-ttl": "^1.3.2"
+    "rdf-string-ttl": "^2.0.1"
   }
 }
