@@ -49,7 +49,7 @@ for (const compact of [true, false]) {
 
 // Create test cases for each file and option combination
 const testCases: Array<{ file: string; option: Options }> = [];
-const dataFiles = fs.readdirSync(path.join(__dirname, '..', 'data'));
+const dataFiles = fs.readdirSync(path.join(__dirname, '..', 'data')).filter((f) => !f.endsWith('.trig'));
 
 for (const file of dataFiles) {
   for (const option of options) {
@@ -153,6 +153,26 @@ it.each(n3TestCases)('It should correctly write N3 file $file without baseIRI [o
   const { string, quads } = await getQuads(file, 'n3_data', { format: 'text/n3', ...option });
 
   const parser = new Parser({ format: 'text/n3' });
+  // @ts-ignore
+  // eslint-disable-next-line no-underscore-dangle
+  parser._supportsRDFStar = true;
+  expect(parser.parse(string)).toBeRdfIsomorphic(quads);
+});
+
+// Create test cases for each TriG file and option combination
+const trigTestCases: Array<{ file: string; option: Options }> = [];
+const trigFiles = ['simple.trig', 'mixed-graphs.trig'];
+
+for (const file of trigFiles) {
+  for (const option of options) {
+    trigTestCases.push({ file, option });
+  }
+}
+
+it.each(trigTestCases)('It should correctly write TriG file $file [options: $option]', async ({ file, option }) => {
+  const { string, quads, baseIri } = await getQuads(file, 'data', { format: 'application/trig', ...option });
+
+  const parser = new Parser({ format: 'application/trig', baseIRI: baseIri });
   // @ts-ignore
   // eslint-disable-next-line no-underscore-dangle
   parser._supportsRDFStar = true;
