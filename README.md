@@ -38,11 +38,17 @@ Specifies the output format. Supported values:
 
 - `'text/turtle'` (default) - Standard Turtle format
 - `'text/n3'` - Notation3 format
+- `'application/trig'` or `'text/trig'` - TriG format (Turtle with named graphs)
 
 ```ts
 // Convert RDF/JS quads into a Notation3 string
 const str = await write(quads, {
   format: 'text/n3'
+});
+
+// Convert RDF/JS quads with named graphs into a TriG string
+const str = await write(quads, {
+  format: 'application/trig'
 });
 ```
 
@@ -113,12 +119,19 @@ When set to `true`, the output will be deterministic with consistent ordering. T
 const str = await write(quads, {
   ordered: true
 });
+
+// Works with TriG format too - graphs are also sorted alphabetically
+const str = await write(quads, {
+  format: 'application/trig',
+  ordered: true
+});
 ```
 
 This is particularly useful for:
 - Testing and comparing outputs
 - Version control where you want consistent diffs
 - Caching scenarios where deterministic output is important
+- When using TriG format, named graphs are also sorted alphabetically for deterministic output
 
 ## Complete Example
 
