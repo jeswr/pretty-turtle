@@ -412,10 +412,18 @@ export class TTLWriter {
       if (!term.graph.equals(DF.defaultGraph())) {
         throw new Error('Default graph expected on nested quads');
       }
-      return `<<${await this.termToString(term.subject as any)} ${term.predicate.termType === 'NamedNode'
+
+      const anon = (_term: Term) => {
+        if (_term.termType === 'BlankNode' && !this.explicitBnodes.has(_term.value)) {
+          return '[]';
+        }
+        return this.termToString(_term as any);
+      };
+
+      return `<<${await anon(term.subject as any)} ${term.predicate.termType === 'NamedNode'
           && term.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
         ? 'a'
-        : await this.termToString(term.predicate as any)} ${await this.termToString(term.object as any)}>>`;
+        : await this.termToString(term.predicate as any)} ${await anon(term.object as any)}>>`;
     }
 
     if (term.termType === 'Literal' && !WELL_DEFINED_DATATYPES.includes(term.datatype.value)) {
