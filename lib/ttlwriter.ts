@@ -61,6 +61,8 @@ export interface Options {
    * Supported values:
    * - `'text/turtle'` - Standard Turtle format
    * - `'text/n3'` - Notation3 format
+   * - `'application/trig'` - TriG format (Turtle with named graphs)
+   * - `'text/trig'` - TriG format (Turtle with named graphs)
    */
   format?: string;
 
@@ -126,6 +128,8 @@ const WELL_DEFINED_DATATYPES = ['http://www.w3.org/1999/02/22-rdf-syntax-ns#lang
 export class TTLWriter {
   private isN3 = false;
 
+  private isTrig = false;
+
   private isImpliedBy = false;
 
   private prefixes: { [prefix: string]: string } = {};
@@ -158,6 +162,10 @@ export class TTLWriter {
       case 'text/n3':
         this.isN3 = true;
         break;
+      case 'application/trig':
+      case 'text/trig':
+        this.isTrig = true;
+        break;
       case undefined:
       case 'text/turtle':
         break;
@@ -173,7 +181,7 @@ export class TTLWriter {
       this.baseIRIString = options.baseIri;
     }
 
-    if (!this.isN3) {
+    if (!this.isN3 && !this.isTrig) {
       const graphs = store.getGraphs(null, null, null);
 
       if (graphs.length > 1) {
@@ -270,9 +278,47 @@ export class TTLWriter {
     //   }
     // }
 
-    await this.writeGraph();
+    if (this.isTrig) {
+      await this.writeAllGraphs();
+    } else {
+      await this.writeGraph();
+    }
 
     this.writer.end();
+  }
+
+  private async writeAllGraphs() {
+    // Get all graphs in the store
+    let graphs = this.store.getGraphs(null, null, null);
+
+    if (this.ordered) {
+      // Sort graphs alphabetically if ordered is true
+      graphs = graphs.sort((a, b) => compareTerms(a, b));
+    }
+
+    for (const graph of graphs) {
+      const { currentGraph } = this;
+      this.currentGraph = graph;
+
+      // Write the graph header
+      if (graph.termType === 'DefaultGraph') {
+        // Default graph - no wrapping needed
+        await this.writeGraph();
+      } else {
+        // Named graph - wrap in GRAPH block
+        this.writer.add(await this.termToString(graph));
+        this.writer.add(' {');
+        this.writer.indent();
+        this.writer.newLine(1);
+        await this.writeGraph();
+        this.writer.deindent();
+        this.writer.newLine(1);
+        this.writer.add('}');
+        this.writer.newLine(1);
+      }
+
+      this.currentGraph = currentGraph;
+    }
   }
 
   private async writeGraph() {
